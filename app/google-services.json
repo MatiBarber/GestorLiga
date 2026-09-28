@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "65391655425",
+    "project_id": "gestorliga-c74b8",
+    "storage_bucket": "gestorliga-c74b8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:65391655425:android:17f2f6f7b47df5cf89de00",
+        "android_client_info": {
+          "package_name": "com.example.gestorliga"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAM9G91MsDi7y9GmqMfPRgfsZPkx0JXf0A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
