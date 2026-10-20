@@ -10,7 +10,11 @@ data class FilaTabla(
     val nombreEquipo: String,
     val puntos: Int,
     val jugados: Int,
-    val diferenciaGol: Int
+    val diferenciaGol: Int,
+    // Se usa como tercer criterio de desempate en FixtureActivity.calcularTabla().
+    // No se muestra en pantalla todavía, pero hace falta para que el orden sea
+    // determinístico.
+    val golesFavor: Int = 0
 )
 
 class TablaPosicionesAdapter(private val filas: List<FilaTabla>) :
