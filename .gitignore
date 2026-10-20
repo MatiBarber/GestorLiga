@@ -13,3 +13,10 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Volcados de error fatal de la JVM (quedan cuando el IDE o Gradle se caen)
+hs_err_pid*.log
+replay_pid*.log
+
+# Carpeta de trabajo del compilador de Kotlin
+.kotlin/

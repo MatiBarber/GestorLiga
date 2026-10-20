@@ -135,7 +135,14 @@ class TorneoDetalleActivity : AppCompatActivity() {
     }
 
     private fun cargarEquipos() {
+        val uid = auth.currentUser?.uid ?: return
+
+        // El filtro por organizadorUid NO es opcional: con las reglas nuevas,
+        // que validan contra resource.data, Firestore exige que la consulta
+        // demuestre que todo lo que devuelve cumple la condición. Sin este
+        // where, la consulta entera se rechaza con PERMISSION_DENIED.
         db.collection("torneos").document(torneoId).collection("equipos")
+            .whereEqualTo("organizadorUid", uid)
             .orderBy("nombre")   // sin orderBy el orden de los equipos era indefinido
             .get()
             .addOnSuccessListener { resultado ->

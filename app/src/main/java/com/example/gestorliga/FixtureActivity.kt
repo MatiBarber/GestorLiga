@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
 class FixtureActivity : AppCompatActivity() {
@@ -18,6 +19,7 @@ class FixtureActivity : AppCompatActivity() {
         const val EXTRA_TORNEO_ESTADO = "EXTRA_TORNEO_ESTADO"
     }
 
+    private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
     private lateinit var torneoId: String
     private lateinit var rvFixture: RecyclerView
@@ -33,6 +35,7 @@ class FixtureActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_fixture)
 
+        auth = FirebaseAuth.getInstance()
         db = FirebaseFirestore.getInstance()
         torneoId = intent.getStringExtra(EXTRA_TORNEO_ID) ?: run {
             finish(); return
@@ -65,7 +68,13 @@ class FixtureActivity : AppCompatActivity() {
     }
 
     private fun cargarPartidos() {
+        val uid = auth.currentUser?.uid ?: return
+
+        // Filtrar por organizadorUid Y ordenar por fechaNumero son campos
+        // distintos, así que esta consulta necesita un ÍNDICE COMPUESTO.
+        // Está declarado en firestore.indexes.json, en la raíz del repo.
         db.collection("torneos").document(torneoId).collection("partidos")
+            .whereEqualTo("organizadorUid", uid)
             .orderBy("fechaNumero")
             .get()
             .addOnSuccessListener { resultado ->

@@ -1,0 +1,68 @@
+rules_version = '2';
+
+// ============================================================================
+// GestorLiga - Reglas de seguridad de Cloud Firestore
+// TP3 - Arquitecturas Móviles - UTN FR San Francisco
+//
+// CAMBIO RESPECTO DE LA VERSIÓN DEL TP2
+// -------------------------------------
+// Antes, las reglas de 'equipos' y 'partidos' resolvían el permiso así:
+//
+//     get(/databases/$(database)/documents/torneos/$(torneoId)).data.organizadorUid
+//
+// Esa llamada lee el documento del torneo desde el servidor en CADA operación.
+// La documentación de Firestore es explícita: usar get() ejecuta una operación
+// de lectura y se factura, incluso si la regla termina rechazando el pedido.
+// Además, las llamadas de acceso a documentos tienen un tope por evaluación
+// (10 para pedidos de un documento y consultas; 20 para lotes y transacciones).
+//
+// Ahora el dato 'organizadorUid' está denormalizado dentro de cada equipo y de
+// cada partido, así que el permiso se resuelve comparando contra un campo del
+// propio documento: cero lecturas adicionales y sin tope de llamadas.
+//
+// CONTRAPARTIDA (y por qué el código tuvo que cambiar junto con esto)
+// ------------------------------------------------------------------
+// Al depender de resource.data, Firestore ya no evalúa las reglas documento por
+// documento en una consulta de colección: exige que la consulta demuestre por
+// sí misma que todo lo que va a devolver cumple la condición. Por eso las
+// consultas de 'equipos' y 'partidos' ahora llevan
+// .whereEqualTo("organizadorUid", uid), y la de partidos necesita un índice
+// compuesto (ver firestore.indexes.json).
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Verdadero si el usuario autenticado es el organizador dueño de 'datos'.
+    // Se usa tanto sobre resource.data (el documento como está guardado) como
+    // sobre request.resource.data (el documento tal como quedaría).
+    function esDueno(datos) {
+      return request.auth != null
+             && datos.organizadorUid is string
+             && request.auth.uid == datos.organizadorUid;
+    }
+
+    match /torneos/{torneoId} {
+
+      allow read, delete: if esDueno(resource.data);
+      allow create: if esDueno(request.resource.data);
+
+      // En update se exigen LAS DOS condiciones: que el usuario sea dueño del
+      // documento actual y que lo siga siendo del resultante. Validar solo la
+      // primera permitiría reasignar el torneo a otro UID y perderlo.
+      allow update: if esDueno(resource.data) && esDueno(request.resource.data);
+
+      match /equipos/{equipoId} {
+        allow read, delete: if esDueno(resource.data);
+        allow create: if esDueno(request.resource.data);
+        allow update: if esDueno(resource.data) && esDueno(request.resource.data);
+      }
+
+      match /partidos/{partidoId} {
+        allow read, delete: if esDueno(resource.data);
+        allow create: if esDueno(request.resource.data);
+        allow update: if esDueno(resource.data) && esDueno(request.resource.data);
+      }
+    }
+  }
+}

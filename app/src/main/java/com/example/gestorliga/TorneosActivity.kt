@@ -13,8 +13,14 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 
 class TorneosActivity : AppCompatActivity() {
+
+    companion object {
+        /** Cuántos torneos se traen por página. */
+        const val TAMANO_PAGINA = 20L
+    }
 
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
@@ -62,11 +68,16 @@ class TorneosActivity : AppCompatActivity() {
     private fun cargarTorneos() {
         val uid = auth.currentUser?.uid ?: return
 
-        // Sin limit(): esta consulta trae TODOS los torneos del organizador en
-        // cada entrada a la pantalla. Es uno de los cuellos de botella que mide
-        // el TP3; se corrige en la fase siguiente.
+        // Antes esta consulta traía TODOS los torneos del organizador en cada
+        // entrada a la pantalla: con 200 torneos, 200 documentos cada vez.
+        // Ahora trae una página de TAMANO_PAGINA, ordenada por fecha de creación
+        // descendente (los más nuevos primero), que es lo que el organizador
+        // quiere ver. El capítulo 16 lo señala entre las buenas prácticas:
+        // paginar para cargar los datos en fragmentos pequeños.
         db.collection("torneos")
             .whereEqualTo("organizadorUid", uid)
+            .orderBy("fechaCreacion", Query.Direction.DESCENDING)
+            .limit(TAMANO_PAGINA)
             .get()
             .addOnSuccessListener { resultado ->
                 ContadorLecturas.registrar("TorneosActivity.cargarTorneos", resultado.size())
@@ -79,6 +90,17 @@ class TorneosActivity : AppCompatActivity() {
                 tvSinTorneos.visibility =
                     if (listaTorneos.isEmpty()) android.view.View.VISIBLE
                     else android.view.View.GONE
+
+                // Si la página vino llena es probable que haya más torneos.
+                // El "cargar más" completo queda como trabajo futuro; lo que
+                // importa acá es que la consulta ya no crece sin techo.
+                if (listaTorneos.size.toLong() == TAMANO_PAGINA) {
+                    Toast.makeText(
+                        this,
+                        "Mostrando los $TAMANO_PAGINA torneos más recientes",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
             .addOnFailureListener { error ->
                 Toast.makeText(
