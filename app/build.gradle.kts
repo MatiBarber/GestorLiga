@@ -44,5 +44,11 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
+
+    // TP7 - Parametros de negocio ajustables sin publicar una version nueva
+    implementation("com.google.firebase:firebase-config")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
+
+    // TP7 - SDK de Google Mobile Ads (AdMob)
+    implementation("com.google.android.gms:play-services-ads:25.5.0")
 }

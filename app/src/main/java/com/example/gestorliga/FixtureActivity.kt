@@ -1,15 +1,23 @@
 package com.example.gestorliga
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdView
+import com.google.android.gms.ads.MobileAds
 
 class FixtureActivity : AppCompatActivity() {
 
@@ -27,6 +35,9 @@ class FixtureActivity : AppCompatActivity() {
     private lateinit var tvHeaderTabla: android.widget.LinearLayout
     private val listaPartidos = mutableListOf<Partido>()
     private lateinit var partidoAdapter: PartidoAdapter
+    private lateinit var adViewFixture: AdView
+    private lateinit var tvClima: TextView
+    private var nombreTorneo: String = ""
 
     // Llega por Intent desde TorneoDetalleActivity: evita una lectura extra.
     private var estadoTorneo: String = "en_curso"
@@ -40,7 +51,7 @@ class FixtureActivity : AppCompatActivity() {
         torneoId = intent.getStringExtra(EXTRA_TORNEO_ID) ?: run {
             finish(); return
         }
-        val nombreTorneo = intent.getStringExtra(EXTRA_TORNEO_NOMBRE) ?: ""
+        nombreTorneo = intent.getStringExtra(EXTRA_TORNEO_NOMBRE) ?: ""
         estadoTorneo = intent.getStringExtra(EXTRA_TORNEO_ESTADO) ?: "en_curso"
         findViewById<TextView>(R.id.tvNombreTorneoFixture).text = nombreTorneo
 
@@ -59,6 +70,29 @@ class FixtureActivity : AppCompatActivity() {
 
         btnMostrarFixture.setOnClickListener { mostrarFixture() }
         btnMostrarTabla.setOnClickListener { mostrarTabla() }
+
+        tvClima = findViewById(R.id.tvClima)
+
+        // TP7 - Canal de notificaciones y boton de recordatorio
+        RecordatorioPartido.crearCanal(this)
+        val btnRecordar = findViewById<Button>(R.id.btnRecordar)
+        btnRecordar.setOnClickListener { programarRecordatorio(pruebaInmediata = false) }
+        btnRecordar.setOnLongClickListener {
+            programarRecordatorio(pruebaInmediata = true)
+            true
+        }
+
+        // TP4 - SDK de Google Mobile Ads. La inicializacion ocurre una sola vez
+        // y debe completarse antes de solicitar cualquier anuncio.
+        adViewFixture = findViewById(R.id.adViewFixture)
+        MobileAds.initialize(this) {
+            adViewFixture.loadAd(AdRequest.Builder().build())
+        }
+    }
+
+    override fun onDestroy() {
+        if (this::adViewFixture.isInitialized) adViewFixture.destroy()
+        super.onDestroy()
     }
 
     override fun onStart() {
@@ -95,6 +129,7 @@ class FixtureActivity : AppCompatActivity() {
                     rvTabla.adapter = TablaPosicionesAdapter(calcularTabla())
                 }
                 actualizarEstadoSegunProgreso()
+                cargarPronostico()
             }
             .addOnFailureListener { error ->
                 Toast.makeText(
@@ -153,6 +188,123 @@ class FixtureActivity : AppCompatActivity() {
                     Toast.LENGTH_LONG
                 ).show()
             }
+    }
+
+    // ------------------------------------------------------------------
+    // TP7 - Consumo de la API REST de pronostico (Open-Meteo)
+    // ------------------------------------------------------------------
+
+    /**
+     * Muestra el pronostico de la proxima fecha sin jugar.
+     *
+     * El modelo guarda numero de fecha y no fecha de calendario, asi que se
+     * aplica la misma convencion que el recordatorio: la fecha N se juega N
+     * dias despues de hoy.
+     *
+     * Se usa un hilo propio y runOnUiThread en lugar de corrutinas para no
+     * sumar dependencias: lo que el trabajo muestra es el consumo de la API,
+     * no la biblioteca que lo envuelve.
+     */
+    private fun cargarPronostico() {
+        val proxima = listaPartidos.firstOrNull { !it.jugado }
+        if (proxima == null || proxima.fechaNumero > ClimaApi.DIAS_MAXIMOS - 1) {
+            tvClima.visibility = View.GONE
+            return
+        }
+
+        val diasAdelante = proxima.fechaNumero
+        tvClima.visibility = View.VISIBLE
+        tvClima.text = "Consultando el pronostico..."
+
+        Thread {
+            val pronosticos = try {
+                ClimaApi.consultarDias(diasAdelante + 1)
+            } catch (e: Exception) {
+                emptyList()
+            }
+            val delDia = pronosticos.getOrNull(diasAdelante)
+
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                tvClima.text = if (delDia == null) {
+                    "Pronostico no disponible"
+                } else {
+                    val temperatura =
+                        if (delDia.temperaturaMaxima.isNaN()) "s/d"
+                        else "${delDia.temperaturaMaxima.toInt()} grados"
+                    val lluvia =
+                        if (delDia.probabilidadLluvia < 0) "s/d"
+                        else "${delDia.probabilidadLluvia}% de lluvia"
+                    "Fecha ${proxima.fechaNumero} (${delDia.fechaIso}) \u00b7 $temperatura \u00b7 $lluvia"
+                }
+            }
+        }.start()
+    }
+
+    // ------------------------------------------------------------------
+    // TP7 - Integracion con las APIs de notificaciones y alarmas
+    // ------------------------------------------------------------------
+
+    /**
+     * Solicitud del permiso de notificaciones, necesario desde Android 13.
+     * En el dispositivo de prueba (Android 11) se concede al instalar y este
+     * contrato nunca llega a mostrarse.
+     */
+    private val permisoNotificaciones =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { concedido ->
+            if (!concedido) {
+                Toast.makeText(
+                    this,
+                    "Sin permiso de notificaciones no se puede avisar",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+
+    private fun hayPermisoDeNotificaciones(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        val concedido = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
+        if (!concedido) permisoNotificaciones.launch(Manifest.permission.POST_NOTIFICATIONS)
+        return concedido
+    }
+
+    /**
+     * Programa un aviso local para el dia de la proxima fecha sin jugar.
+     *
+     * [pruebaInmediata] dispara el mismo aviso diez segundos despues. Existe
+     * para verificar la integracion sin esperar al dia del partido.
+     */
+    private fun programarRecordatorio(pruebaInmediata: Boolean) {
+        val proxima = listaPartidos.firstOrNull { !it.jugado }
+        if (proxima == null) {
+            Toast.makeText(this, "No quedan fechas por jugar", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (!hayPermisoDeNotificaciones()) return
+
+        val cuantos = listaPartidos.count { !it.jugado && it.fechaNumero == proxima.fechaNumero }
+        val texto = "Hoy se juega la fecha ${proxima.fechaNumero}: $cuantos partido(s)"
+
+        val cuando =
+            if (pruebaInmediata) System.currentTimeMillis() + 10_000
+            else RecordatorioPartido.momentoDeLaFecha(proxima.fechaNumero)
+
+        RecordatorioPartido.programar(
+            context = this,
+            idRecordatorio = torneoId.hashCode() and 0x7FFFFFFF,
+            titulo = nombreTorneo,
+            texto = texto,
+            cuandoMillis = cuando
+        )
+
+        Toast.makeText(
+            this,
+            if (pruebaInmediata) "Aviso de prueba en 10 segundos"
+            else "Te aviso el dia de la fecha ${proxima.fechaNumero}",
+            Toast.LENGTH_LONG
+        ).show()
     }
 
     private fun mostrarFixture() {

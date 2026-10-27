@@ -1,16 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/tvNombreTorneoFixture"
+    <!-- Encabezado: nombre del torneo + boton de compartir (TP7) -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp"
-        android:textSize="20sp"
-        android:textStyle="bold" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/tvNombreTorneoFixture"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnRecordar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="Recordar"
+            style="?android:attr/buttonStyleSmall" />
+
+    </LinearLayout>
+
+    <!-- TP7 - Pronostico de la proxima fecha, desde la API de Open-Meteo -->
+    <TextView
+        android:id="@+id/tvClima"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="8dp"
+        android:textSize="13sp"
+        android:textColor="#666666"
+        android:visibility="gone" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -98,5 +128,19 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:visibility="gone" />
+
+    <!--
+      TP7 - Banner de AdMob.
+      adUnitId es la unidad de DEMOSTRACION publicada por Google: no esta
+      asociada a ninguna cuenta, por lo que las impresiones generadas durante
+      el desarrollo no cuentan como trafico invalido.
+    -->
+    <com.google.android.gms.ads.AdView
+        android:id="@+id/adViewFixture"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        app:adSize="BANNER"
+        app:adUnitId="ca-app-pub-3940256099942544/6300978111" />
 
 </LinearLayout>

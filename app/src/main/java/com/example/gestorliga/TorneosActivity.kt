@@ -49,7 +49,10 @@ class TorneosActivity : AppCompatActivity() {
         rvTorneos.layoutManager = LinearLayoutManager(this)
         rvTorneos.adapter = adapter
 
-        btnNuevoTorneo.setOnClickListener { mostrarDialogoNuevoTorneo() }
+        btnNuevoTorneo.setOnClickListener {
+            if (superaElPlanGratuito()) mostrarLimiteAlcanzado()
+            else mostrarDialogoNuevoTorneo()
+        }
 
         // Menú oculto de instrumentación: pulsación larga sobre "+ Nuevo Torneo".
         // Va acá para no tocar el layout ni dejar botones de prueba a la vista.
@@ -62,7 +65,12 @@ class TorneosActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        cargarTorneos()
+
+        // TP7 - Se consulta Remote Config antes de listar, de modo que el
+        // tope del plan gratuito este actualizado cuando el organizador
+        // intente crear un torneo. Si la consulta falla siguen vigentes los
+        // valores por defecto y la pantalla funciona igual.
+        ConfiguracionRemota.actualizar { cargarTorneos() }
     }
 
     private fun cargarTorneos() {
@@ -153,6 +161,34 @@ class TorneosActivity : AppCompatActivity() {
                     Toast.LENGTH_LONG
                 ).show()
             }
+    }
+
+    // ------------------------------------------------------------------------
+    // TP7 - Tope del plan gratuito, gobernado por Remote Config
+    // ------------------------------------------------------------------------
+
+    private fun superaElPlanGratuito(): Boolean =
+        listaTorneos.size >= ConfiguracionRemota.maxTorneosGratis()
+
+    /**
+     * Mensaje que se muestra al alcanzar el tope.
+     *
+     * El numero sale de Remote Config, no del codigo: cambiarlo en la consola
+     * de Firebase modifica este texto sin publicar una version nueva.
+     */
+    private fun mostrarLimiteAlcanzado() {
+        val tope = ConfiguracionRemota.maxTorneosGratis()
+        AlertDialog.Builder(this)
+            .setTitle("Limite del plan gratuito")
+            .setMessage(
+                "El plan gratuito permite hasta $tope torneo(s) y ya tenes " +
+                        "${listaTorneos.size}.\n\n" +
+                        "El plan Organizador quita el limite y los anuncios.\n" +
+                        "El plan Club agrega ida y vuelta, edicion de torneos y " +
+                        "varias categorias."
+            )
+            .setPositiveButton("Entendido", null)
+            .show()
     }
 
     // ------------------------------------------------------------------------

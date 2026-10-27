@@ -2,6 +2,22 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!--
+      TP7 - Necesario para consumir la API REST de pronostico y para el SDK de
+      anuncios. Los SDK de Firebase y de Ads lo declaran por su cuenta y la
+      fusion de manifiestos lo incorporaria igual, pero declararlo de forma
+      explicita deja constancia de que la aplicacion usa la red por decision
+      propia y no solo por sus dependencias.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+      TP7 - Desde Android 13 las notificaciones requieren permiso en tiempo de
+      ejecucion. En versiones anteriores, como el Android 11 del dispositivo de
+      prueba, se conceden al instalar.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -11,6 +27,22 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.GestorLiga">
+
+        <!--
+          TP4 - Identificador de aplicacion de AdMob.
+          Es el ID REAL de la cuenta: vincula esta app con el panel donde se
+          configuro la unidad de anuncio. La etiqueta es obligatoria y si falta
+          el SDK aborta al iniciar con "Missing application ID".
+
+          Nota: el ID de app es real, pero la UNIDAD de anuncio que usa el
+          layout es la de demostracion de Google. Usar la unidad propia durante
+          el desarrollo generaria impresiones falsas contra esta cuenta, que
+          Google considera trafico invalido y sanciona con la suspension.
+        -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-1853949618868093~1889817576" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -33,6 +65,11 @@
             android:name=".FixtureActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+
+        <!-- TP7 - Receptor del recordatorio. Solo lo invoca la propia app. -->
+        <receiver
+            android:name=".RecordatorioReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>
