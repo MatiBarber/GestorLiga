@@ -47,6 +47,11 @@ dependencies {
 
     // TP7 - Parametros de negocio ajustables sin publicar una version nueva
     implementation("com.google.firebase:firebase-config")
+
+    // TP6 - Notificaciones push y medicion de retencion
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-analytics")
+
     implementation("androidx.recyclerview:recyclerview:1.3.2")
 
     // TP7 - SDK de Google Mobile Ads (AdMob)

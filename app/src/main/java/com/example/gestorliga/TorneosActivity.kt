@@ -14,6 +14,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import android.content.ClipData
+import android.content.ClipboardManager
 
 class TorneosActivity : AppCompatActivity() {
 
@@ -35,6 +37,9 @@ class TorneosActivity : AppCompatActivity() {
 
         auth = FirebaseAuth.getInstance()
         db = FirebaseFirestore.getInstance()
+
+        // TP6 - El canal debe existir antes de que llegue el primer aviso.
+        AvisosPush.crearCanal(this)
 
         rvTorneos = findViewById(R.id.rvTorneos)
         tvSinTorneos = findViewById(R.id.tvSinTorneos)
@@ -199,7 +204,8 @@ class TorneosActivity : AppCompatActivity() {
         val opciones = arrayOf(
             "Sembrar torneo de prueba",
             "Ver resumen de lecturas",
-            "Reiniciar contador"
+            "Reiniciar contador",
+            "Ver token de push (TP6)"
         )
 
         AlertDialog.Builder(this)
@@ -212,9 +218,35 @@ class TorneosActivity : AppCompatActivity() {
                         ContadorLecturas.reiniciar()
                         Toast.makeText(this, "Contador reiniciado", Toast.LENGTH_SHORT).show()
                     }
+                    3 -> mostrarTokenPush()
                 }
             }
             .show()
+    }
+
+    /**
+     * TP6 - Muestra el token de registro de este dispositivo y lo copia al
+     * portapapeles. Es el dato que pide la consola para enviar un mensaje de
+     * prueba. Va en el menu oculto de instrumentacion porque es una
+     * herramienta de desarrollo, no una funcion del producto.
+     */
+    private fun mostrarTokenPush() {
+        AvisosPush.token { token ->
+            if (token == null) {
+                Toast.makeText(this, "No se pudo obtener el token", Toast.LENGTH_LONG).show()
+                return@token
+            }
+            AlertDialog.Builder(this)
+                .setTitle("Token de push")
+                .setMessage(token)
+                .setPositiveButton("Copiar") { _, _ ->
+                    val portapapeles = getSystemService(ClipboardManager::class.java)
+                    portapapeles?.setPrimaryClip(ClipData.newPlainText("token", token))
+                    Toast.makeText(this, "Token copiado", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("Cerrar", null)
+                .show()
+        }
     }
 
     private fun mostrarDialogoSembrar() {

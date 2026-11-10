@@ -66,6 +66,26 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
+        <!--
+            TP6 - Canal por defecto de las notificaciones push.
+            Con la app en segundo plano el SDK publica el aviso por su cuenta, sin
+            pasar por el servicio, y necesita saber en que canal hacerlo. Si falta
+            esta etiqueta el aviso cae en un canal generico que el usuario no
+            reconoce. El valor debe coincidir con AvisosPush.CANAL_ID.
+        -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="avisos_push" />
+
+        <!-- TP6 - Receptor de los mensajes de Firebase Cloud Messaging. -->
+        <service
+            android:name=".ServicioMensajes"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
         <!-- TP7 - Receptor del recordatorio. Solo lo invoca la propia app. -->
         <receiver
             android:name=".RecordatorioReceiver"
